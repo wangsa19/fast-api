@@ -1,6 +1,7 @@
 from enum import Enum
-from fastapi import FastAPI
-from pydantic import BaseModel
+from typing import Annotated
+from fastapi import FastAPI, Query
+from pydantic import BaseModel, AfterValidator
 
 
 class Item(BaseModel):
@@ -63,9 +64,90 @@ async def read_file(file_path: str):
 fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"}]
 
 
+# Custom Validation
+data = {
+    "isbn-9781529046137": "The Hitchhiker's Guide to the Galaxy",
+    "imdb-tt0371724": "The Hitchhiker's Guide to the Galaxy",
+    "isbn-9781439512982": "Isaac Asimov: The Complete Stories, Vol. 2",
+}
+
+
+def check_valid_id(id: str):
+    if not id.startswith(("isbn-", "imdb")):
+        raise ValueError('Invalid ID format, it must start with "isbn-" or "imdb-"')
+    return id
+
+
 @app.get("/items/")
-async def read_item(skip: int = 0, limit: int = 10):
-    return fake_items_db[skip : skip + limit]
+async def read_items(id: Annotated[str | None, AfterValidator(check_valid_id)] = None):
+    if id:
+        item = data.get(id)
+    else:
+        id, item = random.choice(list(data.items()))
+    return {"id": id, "name": item}
+
+
+# Exclude parameters from OpenAPI
+# async def read_items(
+#     hidden_query: Annotated[str | None, Query(include_in_schema=False)] = None,
+# ):
+#     if hidden_query:
+#         return {"hidden_query": hidden_query}
+#     else:
+#         return {"hidden_query": "Not found"}
+
+# Deprecating Parameters
+# async def read_items(
+#     q: Annotated[
+#         str | None,
+#         Query(
+#             alias="item-query",
+#             title="Query setting",
+#             description="Query string for the items to search in the database that have a good match",
+#             min_length=3,
+#             max_length=50,
+#             pattern="^fixedquery$",
+#             deprecated=True,
+#         ),
+#     ] = None,
+# ):
+#     results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+#     if q:
+#         results.update({"q": q})
+#     return results
+
+
+# Alias Parameters
+# async def read_items(q: Annotated[str | None, Query(alias="item-query")] = None):
+#     results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+#     if q:
+#         results.update({"q": q})
+#     return results
+
+
+# Declare more metadata
+# async def read_items(
+#     q: Annotated[
+#         str | None,
+#         Query(
+#             title="Query String",
+#             description="Query string for the items to search in the database that have a good match",
+#             min_length=3,
+#         ),
+#     ] = None,
+# ):
+#     results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+#     if q:
+#         results.update({"q": q})
+#     return results
+
+# async def read_items(
+#     q: Annotated[str | None, Query(min_length=3, max_length=50)],
+# ):
+# results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+# if q:
+#     results.update({"q": q})
+# return results
 
 
 @app.post("/items/")
