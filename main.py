@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Annotated
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Path
 from pydantic import BaseModel, AfterValidator
 
 
@@ -159,9 +159,23 @@ async def create_item(item: Item):
     return item_dict
 
 
-@app.put("/items/{item_id}")
-async def update_item(item_id: int, item: Item, q: str | None = None):
-    return {"item_name": item.name, "item_id": item_id}
+# @app.put("/items/{item_id}")
+# async def update_item(item_id: int, item: Item, q: str | None = None):
+#     return {"item_name": item.name, "item_id": item_id}
+
+
+# Path Parameters and Numeric Validations
+@app.get("/items/{item_id}")
+async def read_items(
+    *,
+    item_id: Annotated[int, Path(title="The ID of the item to get", gt=0, le=1000)],
+    q: Annotated[str | None, Query(alias="item-query")] = None,
+    size: Annotated[float, Query(gt=0, lt=10.5)],
+):
+    results = {"item_id": item_id}
+    if q:
+        results.update({"q": q})
+    return results
 
 
 @app.get("/items/{item_id}")
