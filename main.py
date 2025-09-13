@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Literal
 from fastapi import FastAPI, Query, Path
-from pydantic import BaseModel, AfterValidator
+from pydantic import BaseModel, AfterValidator, Field
 
 
 class Item(BaseModel):
@@ -15,6 +15,15 @@ class ModelName(str, Enum):
     alexnet = "alexnet"
     resnet = "resnet"
     lenet = "lenet"
+
+
+class FilterParams(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    limit: int = Field(100, gt=0, le=100)
+    offset: int = Field(0, ge=0)
+    order_by: Literal["created_at", "updated_at"] = "created_at"
+    tags: list[str] = []
 
 
 app = FastAPI()
@@ -78,13 +87,19 @@ def check_valid_id(id: str):
     return id
 
 
+# @app.get("/items/")
+# async def read_items(id: Annotated[str | None, AfterValidator(check_valid_id)] = None):
+#     if id:
+#         item = data.get(id)
+#     else:
+#         id, item = random.choice(list(data.items()))
+#     return {"id": id, "name": item}
+
+
+# Query Parameters Models
 @app.get("/items/")
-async def read_items(id: Annotated[str | None, AfterValidator(check_valid_id)] = None):
-    if id:
-        item = data.get(id)
-    else:
-        id, item = random.choice(list(data.items()))
-    return {"id": id, "name": item}
+async def read_items(filter_query: Annotated[FilterParams, Query()]):
+    return filter_query
 
 
 # Exclude parameters from OpenAPI
